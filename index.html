@@ -247,9 +247,6 @@
       { label: 'localStorage 비우기', icon: 'trash', run: () => { try { localStorage.clear(); } catch {} syncRoleUI(); toast('localStorage 비움'); } },
       { label: 'sessionStorage 비우기', icon: 'trash', run: () => { try { sessionStorage.clear(); } catch {} toast('sessionStorage 비움'); } },
     ]},
-    { label: '로그', icon: 'logs', items: [
-      { label: '에러 로그 (준비중)', icon: 'logs', run: () => toast('준비중') },
-    ]},
     { label: '계정', icon: 'user', items: [
       { label: '일반 권한으로 보기', icon: 'user', run: () => { store.set(ROLE_KEY, 'user'); syncRoleUI(); toast('일반 권한으로 전환'); } },
     ]},
@@ -270,7 +267,9 @@
   const connectorPath = document.getElementById('connectorPath');
 
   const C = 150, R0 = 76, R1 = 140, GAP = 2.2;  // 도 단위 간격
-  const N = MENU.length, STEP = 360 / N;
+  // 6개 기준: 30°씩 돌려서 정중앙(위/아래)에 걸치는 칸 없이 오른쪽 3 · 왼쪽 3으로 나눔
+  const N = MENU.length, STEP = 360 / N, OFFSET = STEP / 2;
+  const angleOf = (i) => i * STEP + OFFSET;
   const pt = (r, deg) => { const a = (deg - 90) * Math.PI / 180; return [C + r * Math.cos(a), C + r * Math.sin(a)]; };
   function arcPath(a0, a1) {
     const large = a1 - a0 > 180 ? 1 : 0;
@@ -279,8 +278,8 @@
   }
 
   MENU.forEach((m, i) => {
-    const a0 = i * STEP - STEP / 2 + GAP / 2, a1 = a0 + STEP - GAP;
-    const [ix, iy] = pt((R0 + R1) / 2, i * STEP);
+    const a0 = angleOf(i) - STEP / 2 + GAP / 2, a1 = a0 + STEP - GAP;
+    const [ix, iy] = pt((R0 + R1) / 2, angleOf(i));
     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     g.classList.add('seg-group');
     g.innerHTML = `<path class="seg" d="${arcPath(a0, a1)}" aria-label="${m.label}"></path>
@@ -305,7 +304,7 @@
     const W = 270, GAP_OUT = 40;
 
     // 활성 세그먼트가 있는 쪽(좌/우)에 패널을 띄움 → 연결선이 다이얼을 가로지르지 않게
-    const ang = active * STEP;
+    const ang = angleOf(active);
     const [sx] = pt(R1, ang);
     let right = sx - C >= -1;
     if (right && origin.x + C + GAP_OUT + W > innerWidth) right = false;
