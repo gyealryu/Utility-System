@@ -87,6 +87,9 @@
     display: grid; place-items: center; color: #2a2b31; border: 0;
   }
   .knob > svg { width: 20px; height: 20px; margin-top: -10px; }
+  .knob { transition: transform .15s, box-shadow .15s; }
+  .knob:hover { transform: translate(-50%, -50%) scale(1.04); box-shadow: 0 0 0 6px #17181d, 0 0 32px 8px rgba(255,138,76,.38), inset 0 -6px 12px rgba(0,0,0,.15); }
+  .knob:active { transform: translate(-50%, -50%) scale(.98); }
   .knob::before {
     content: ""; position: absolute; inset: 10px; border-radius: 50%;
     border: 2px dotted rgba(0,0,0,.18);
@@ -99,23 +102,54 @@
   /* 하위 항목 패널 */
   .sub {
     position: absolute; display: flex; flex-direction: column; gap: 10px;
-    transform: translateY(-50%);
   }
   .sub-title { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding-left: 4px; }
-  .sub-item {
-    display: flex; align-items: center; gap: 12px; min-width: 230px;
-    padding: 12px 16px; border-radius: 10px; cursor: pointer;
-    background: rgba(43,44,51,.92); border: 1px solid var(--line);
-    color: var(--muted); font: inherit; text-align: left;
+  .sub-card {
+    width: 280px; border-radius: 10px; overflow: hidden;
+    background: rgba(43,44,51,.94); border: 1px solid var(--line);
     box-shadow: 0 10px 24px rgba(0,0,0,.35);
     opacity: 0; transform: translateX(-8px);
     animation: slide .18s ease-out forwards;
+    transition: border-color .12s;
   }
-  .sub-item:hover, .sub-item:focus-visible { color: var(--text); border-color: rgba(255,255,255,.22); outline: 0; }
-  .sub-item svg { flex: none; }
+  .sub.left .sub-card { transform: translateX(8px); }
   @keyframes slide { to { opacity: 1; transform: none; } }
-  .sub.left .sub-item { transform: translateX(8px); }
-  .connector { position: absolute; pointer-events: none; overflow: visible; }
+  .sub-card:hover, .sub-card:focus-within, .sub-card.open { border-color: rgba(255,255,255,.22); }
+  .sub-item {
+    display: flex; align-items: center; gap: 12px; width: 100%;
+    padding: 12px 16px; cursor: pointer; background: none; border: 0;
+    color: var(--muted); font: inherit; text-align: left;
+  }
+  .sub-item:hover, .sub-item:focus-visible, .sub-card.open .sub-item { color: var(--text); outline: 0; }
+  .sub-item svg { flex: none; }
+  .sub-item .lbl { flex: 1; }
+  .sub-item .meta { font-size: 12px; color: var(--muted); }
+
+  /* 토글 스위치 */
+  .sw { width: 30px; height: 18px; border-radius: 9px; background: #4a4b55; position: relative; flex: none; transition: background .15s; }
+  .sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #c9cad1; transition: transform .15s; }
+  .sw.on { background: var(--accent); }
+  .sw.on::after { transform: translateX(12px); background: #fff; }
+
+  /* 펼침(보기) 영역 */
+  .chev { transition: transform .15s; flex: none; }
+  .sub-card.open .chev { transform: rotate(90deg); }
+  .sub-body { display: none; border-top: 1px solid var(--line); padding: 8px; max-height: 220px; overflow: auto; font-size: 13px; }
+  .sub-card.open .sub-body { display: block; }
+  .kv { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; }
+  .kv:hover { background: rgba(255,255,255,.04); }
+  .kv .k { color: var(--muted); flex: none; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .kv .v { flex: 1; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+  .kv .x { flex: none; border: 0; background: none; color: var(--muted); cursor: pointer; border-radius: 4px; padding: 2px 6px; font: inherit; }
+  .kv .x:hover { color: #ff6b6b; background: rgba(255,107,107,.12); }
+  .empty { color: var(--muted); padding: 6px 8px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+
+  /* 확인이 필요한 동작 / 완료 표시 */
+  .sub-card.confirm { border-color: rgba(255,107,107,.6); }
+  .sub-card.confirm .sub-item { color: #ff8b8b; }
+  .sub-card.done .sub-item { color: #7ee2a8; }
+  .connector { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
   .connector path { stroke: rgba(255,255,255,.25); fill: none; stroke-width: 1.2; }
 
   /* 토스트 */
@@ -151,7 +185,7 @@
   </div>
   <p class="hint">
     개발자 권한 계정은 아무 곳에서나 <kbd>우클릭</kbd> 하면 개발자 다이얼이 열립니다.
-    휠/방향키로 회전, <kbd>Enter</kbd> 선택, <kbd>Esc</kbd> 닫기.
+    휠/방향키로 회전, <kbd>Enter</kbd> 선택, <kbd>Esc</kbd> 닫기, 가운데 <kbd>DEV</kbd>를 누르면 개발자 페이지로 이동.
     브라우저 기본 메뉴가 필요하면 <kbd>Shift</kbd>+우클릭.
   </p>
 </main>
@@ -167,7 +201,7 @@
       </defs>
       <g id="segments"></g>
     </svg>
-    <button class="knob" id="knob" aria-label="닫기">
+    <button class="knob" id="knob" aria-label="개발자 페이지로 이동" title="개발자 페이지로 이동">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M7 8h10M7 12h10M7 16h10"/></svg>
       <span class="knob-label" id="knobLabel">DEV</span>
     </button>
@@ -224,38 +258,70 @@
     doc:      I('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>'),
     refresh:  I('<path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/>'),
     trash:    I('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'),
+    chev:     I('<path d="M9 6l6 6-6 6"/>'),
+    check:    I('<path d="M5 12l5 5 9-10"/>'),
     copy:     I('<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>'),
   };
 
   /* =========================================================
    * 메뉴 정의 — 여기에 항목 추가/수정
    * ========================================================= */
+  // 항목 종류
+  //  - 기본(action): 누르면 run() 실행 후 항목 위에 결과 표시. leave:true 면 메뉴 닫음
+  //  - confirm:true : 한 번 더 눌러야 실행 (삭제 등)
+  //  - kind:'toggle': get()/set(v) — 스위치로 바로 켜고 끔
+  //  - kind:'view'  : body(el) — 누르면 항목 아래로 펼쳐서 내용 표시
+  const esc = (v) => String(v).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const kvList = (rows) => rows.length
+    ? rows.map(([k, v]) => `<div class="kv"><span class="k">${esc(k)}</span><span class="v" title="${esc(v)}">${esc(v)}</span></div>`).join('')
+    : '<div class="empty">비어 있음</div>';
+
+  function storageView(el) {
+    let keys = [];
+    try { for (let i = 0; i < localStorage.length; i++) keys.push(localStorage.key(i)); } catch {}
+    if (!keys.length) { el.innerHTML = '<div class="empty">저장된 값이 없습니다</div>'; return; }
+    el.innerHTML = keys.map(k => {
+      let v = ''; try { v = localStorage.getItem(k); } catch {}
+      return `<div class="kv"><span class="k" title="${esc(k)}">${esc(k)}</span><span class="v" title="${esc(v)}">${esc(v)}</span><button class="x" data-key="${esc(k)}" aria-label="${esc(k)} 삭제">✕</button></div>`;
+    }).join('');
+    el.querySelectorAll('.x').forEach(b => b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      try { localStorage.removeItem(b.dataset.key); } catch {}
+      syncRoleUI();
+      storageView(el); layoutSub();
+    }));
+  }
+
   const MENU = [
     { label: '콘솔', icon: 'console', items: [
-      { label: 'console.clear()', icon: 'trash', run: () => { console.clear(); toast('콘솔 정리됨'); } },
-      { label: '환경 정보 출력', icon: 'doc', run: () => { console.table(envInfo()); toast('콘솔에 출력됨'); } },
+      { label: 'console.clear()', icon: 'trash', run: () => { console.clear(); return '정리됨'; } },
+      { label: '환경 정보', icon: 'doc', kind: 'view', body: (el) => { el.innerHTML = kvList(Object.entries(envInfo())); } },
     ]},
     { label: '레이아웃', icon: 'layout', items: [
-      { label: '요소 외곽선 토글', icon: 'inspect', run: () => { document.body.classList.toggle('debug-outline'); toast('외곽선 ' + (document.body.classList.contains('debug-outline') ? 'ON' : 'OFF')); } },
-      { label: '뷰포트 크기 보기', icon: 'layout', run: () => toast(`${innerWidth} × ${innerHeight} @${devicePixelRatio}x`) },
+      { label: '요소 외곽선', icon: 'inspect', kind: 'toggle',
+        get: () => document.body.classList.contains('debug-outline'),
+        set: (v) => document.body.classList.toggle('debug-outline', v) },
+      { label: '뷰포트 크기', icon: 'layout', kind: 'view', body: (el) => { el.innerHTML = kvList([['너비', innerWidth + 'px'], ['높이', innerHeight + 'px'], ['배율', devicePixelRatio + 'x']]); } },
     ]},
     { label: '네트워크', icon: 'network', items: [
-      { label: '연결 상태', icon: 'network', run: () => toast(navigator.onLine ? '온라인' : '오프라인') },
-      { label: '현재 URL 복사', icon: 'copy', run: () => copy(location.href) },
+      { label: '연결 상태', icon: 'network', kind: 'view', body: (el) => {
+        const c = navigator.connection || {};
+        const on = navigator.onLine;
+        el.innerHTML = `<div class="kv"><span class="k">상태</span><span class="v"><span class="dot" style="background:${on ? '#7ee2a8' : '#ff6b6b'}"></span>${on ? '온라인' : '오프라인'}</span></div>`
+          + kvList([['유형', c.effectiveType || '-'], ['대역폭', c.downlink ? c.downlink + ' Mbps' : '-'], ['지연', c.rtt != null ? c.rtt + ' ms' : '-']]);
+      } },
+      { label: '현재 URL 복사', icon: 'copy', run: () => navigator.clipboard?.writeText(location.href).then(() => '복사됨', () => '복사 실패') },
     ]},
     { label: '스토리지', icon: 'storage', items: [
-      { label: 'localStorage 보기', icon: 'doc', run: () => { const o = {}; try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); o[k] = localStorage.getItem(k); } } catch {} console.table(o); toast(`${Object.keys(o).length}개 키 → 콘솔`); } },
-      { label: 'localStorage 비우기', icon: 'trash', run: () => { try { localStorage.clear(); } catch {} syncRoleUI(); toast('localStorage 비움'); } },
-      { label: 'sessionStorage 비우기', icon: 'trash', run: () => { try { sessionStorage.clear(); } catch {} toast('sessionStorage 비움'); } },
-    ]},
-    { label: '로그', icon: 'logs', items: [
-      { label: '에러 로그 (준비중)', icon: 'logs', run: () => toast('준비중') },
+      { label: 'localStorage 보기', icon: 'doc', kind: 'view', body: storageView },
+      { label: 'localStorage 비우기', icon: 'trash', confirm: true, run: () => { const role = store.get(ROLE_KEY); try { localStorage.clear(); } catch {} if (role) store.set(ROLE_KEY, role); return '비움'; } },
+      { label: 'sessionStorage 비우기', icon: 'trash', confirm: true, run: () => { try { sessionStorage.clear(); } catch {} return '비움'; } },
     ]},
     { label: '계정', icon: 'user', items: [
-      { label: '일반 권한으로 보기', icon: 'user', run: () => { store.set(ROLE_KEY, 'user'); syncRoleUI(); toast('일반 권한으로 전환'); } },
+      { label: '일반 권한으로 보기', icon: 'user', leave: true, run: () => { store.set(ROLE_KEY, 'user'); syncRoleUI(); toast('일반 권한으로 전환'); } },
     ]},
     { label: '설정', icon: 'settings', items: [
-      { label: '강력 새로고침', icon: 'refresh', run: () => location.reload() },
+      { label: '강력 새로고침', icon: 'refresh', leave: true, run: () => location.reload() },
     ]},
   ];
 
@@ -271,7 +337,9 @@
   const connectorPath = document.getElementById('connectorPath');
 
   const C = 150, R0 = 76, R1 = 140, GAP = 2.2;  // 도 단위 간격
-  const N = MENU.length, STEP = 360 / N;
+  // 6개 기준: 30°씩 돌려서 정중앙(위/아래)에 걸치는 칸 없이 오른쪽 3 · 왼쪽 3으로 나눔
+  const N = MENU.length, STEP = 360 / N, OFFSET = STEP / 2;
+  const angleOf = (i) => i * STEP + OFFSET;
   const pt = (r, deg) => { const a = (deg - 90) * Math.PI / 180; return [C + r * Math.cos(a), C + r * Math.sin(a)]; };
   function arcPath(a0, a1) {
     const large = a1 - a0 > 180 ? 1 : 0;
@@ -279,14 +347,17 @@
     return `M${x0} ${y0}A${R1} ${R1} 0 ${large} 1 ${x1} ${y1}L${x2} ${y2}A${R0} ${R0} 0 ${large} 0 ${x3} ${y3}Z`;
   }
 
+  let hoverTimer;
   MENU.forEach((m, i) => {
-    const a0 = i * STEP - STEP / 2 + GAP / 2, a1 = a0 + STEP - GAP;
-    const [ix, iy] = pt((R0 + R1) / 2, i * STEP);
+    const a0 = angleOf(i) - STEP / 2 + GAP / 2, a1 = a0 + STEP - GAP;
+    const [ix, iy] = pt((R0 + R1) / 2, angleOf(i));
     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     g.classList.add('seg-group');
-    g.innerHTML = `<path class="seg" d="${arcPath(a0, a1)}"><title>${m.label}</title></path>
+    g.innerHTML = `<path class="seg" d="${arcPath(a0, a1)}" aria-label="${m.label}"></path>
       <g class="seg-icon" transform="translate(${ix - 10} ${iy - 10})">${ICON[m.icon]}</g>`;
-    g.addEventListener('mouseenter', () => setActive(i));
+    // 패널로 가는 도중 다른 칸을 스쳐도 바뀌지 않도록 잠깐 머물러야 전환
+    g.addEventListener('mouseenter', () => { clearTimeout(hoverTimer); hoverTimer = setTimeout(() => setActive(i), 110); });
+    g.addEventListener('mouseleave', () => clearTimeout(hoverTimer));
     g.addEventListener('click', () => { setActive(i); focusFirstSub(); });
     segG.appendChild(g);
   });
@@ -298,35 +369,110 @@
     if (i === active) return;
     active = i;
     [...segG.children].forEach((g, j) => g.classList.toggle('active', j === i));
-    knobLabel.textContent = MENU[i].label;
     renderSub();
   }
 
   function renderSub() {
     const m = MENU[active];
-    const rightSide = origin.x + 150 + 270 < innerWidth;
-    sub.classList.toggle('left', !rightSide);
-    sub.innerHTML = `<div class="sub-title">${m.label}</div>` + m.items.map((it, k) =>
-      `<button class="sub-item" role="menuitem" data-k="${k}" style="animation-delay:${k * 35}ms">${ICON[it.icon]}<span>${it.label}</span></button>`
-    ).join('');
-    const x = rightSide ? origin.x + 150 + 40 : origin.x - 150 - 40;
-    sub.style.left = rightSide ? x + 'px' : '';
-    sub.style.right = rightSide ? '' : (innerWidth - x) + 'px';
-    sub.style.top = origin.y + 'px';
-    sub.querySelectorAll('.sub-item').forEach(b => b.addEventListener('click', () => {
-      const it = m.items[+b.dataset.k];
-      close();
-      it.run();
-    }));
+    const W = 280, GAP_OUT = 40;
 
-    // 활성 세그먼트 → 패널로 이어지는 연결선
-    const [sx, sy] = pt(R1, active * STEP);
-    const ax = origin.x + sx - C, ay = origin.y + sy - C;
-    const ex = rightSide ? x : x, ey = origin.y;
-    const mx = (ax + ex) / 2;
-    connector.style.left = '0'; connector.style.top = '0';
+    // 활성 세그먼트가 있는 쪽(좌/우)에 패널을 띄움 → 연결선이 다이얼을 가로지르지 않게
+    const ang = angleOf(active);
+    const [sx] = pt(R1, ang);
+    let right = sx - C >= -1;
+    if (right && origin.x + C + GAP_OUT + W > innerWidth) right = false;
+    else if (!right && origin.x - C - GAP_OUT - W < 0) right = true;
+
+    sub.classList.toggle('left', !right);
+    sub.innerHTML = `<div class="sub-title">${m.label}</div>`;
+    m.items.forEach((it, k) => sub.appendChild(buildItem(it, k)));
+    subSide = right;
+    layoutSub();
+  }
+
+  function buildItem(it, k) {
+    const card = document.createElement('div');
+    card.className = 'sub-card';
+    card._item = it;
+    card.style.animationDelay = k * 35 + 'ms';
+    const trail = it.kind === 'toggle' ? `<span class="sw${it.get() ? ' on' : ''}"></span>`
+               : it.kind === 'view' ? `<span class="chev">${ICON.chev}</span>`
+               : '<span class="meta"></span>';
+    card.innerHTML = `<button class="sub-item" role="menuitem">${ICON[it.icon]}<span class="lbl">${it.label}</span>${trail}</button>`
+                   + (it.kind === 'view' ? '<div class="sub-body"></div>' : '');
+    const btn = card.firstElementChild;
+    const lbl = btn.querySelector('.lbl'), meta = btn.querySelector('.meta');
+    let confirmTimer, doneTimer;
+
+    btn.addEventListener('click', async () => {
+      if (it.kind === 'toggle') {
+        const v = !it.get(); it.set(v);
+        btn.querySelector('.sw').classList.toggle('on', v);
+        return;
+      }
+      if (it.kind === 'view') {
+        const open = !card.classList.contains('open');
+        card.classList.toggle('open', open);
+        btn.setAttribute('aria-expanded', open);
+        if (open) it.body(card.querySelector('.sub-body'));
+        layoutSub();
+        return;
+      }
+      if (it.leave) { close(); it.run(); return; }
+      if (it.confirm && !card.classList.contains('confirm')) {
+        card.classList.add('confirm'); lbl.textContent = '한 번 더 누르면 실행';
+        confirmTimer = setTimeout(() => { card.classList.remove('confirm'); lbl.textContent = it.label; }, 2500);
+        return;
+      }
+      clearTimeout(confirmTimer); clearTimeout(doneTimer);
+      card.classList.remove('confirm'); lbl.textContent = it.label;
+      const result = await it.run();
+      // 같은 패널에 펼쳐 둔 목록이 있으면 바로 갱신
+      sub.querySelectorAll('.sub-card.open').forEach(c => c._item.body(c.querySelector('.sub-body')));
+      layoutSub();
+      card.classList.add('done');
+      meta.innerHTML = `${ICON.check}`; meta.title = result || '';
+      lbl.textContent = result ? `${it.label} · ${result}` : it.label;
+      doneTimer = setTimeout(() => { card.classList.remove('done'); meta.innerHTML = ''; lbl.textContent = it.label; }, 1800);
+    });
+    return card;
+  }
+
+  let subSide = true;
+  function layoutSub() {
+    if (active < 0) return;
+    const right = subSide, W = 280, GAP_OUT = 40;
+    const ang = angleOf(active);
+
+    // 세그먼트 바깥 끝 → 살짝 바깥으로 → 패널 첫 항목 높이로 수평 연결
+    const toPage = ([x, y]) => [origin.x + x - C, origin.y + y - C];
+    const [ax, ay] = toPage(pt(R1 + 2, ang));
+    const [bx, by] = toPage(pt(R1 + 16, ang));
+    const edge = right ? origin.x + C + GAP_OUT : origin.x - C - GAP_OUT;
+    sub.style.left = right ? edge + 'px' : '';
+    sub.style.right = right ? '' : (innerWidth - edge) + 'px';
+
+    const first = sub.querySelector('.sub-item');
+    const anchor = first.offsetTop + first.offsetHeight / 2;
+    const top = Math.min(Math.max(by - anchor, 12), innerHeight - sub.offsetHeight - 12);
+    sub.style.top = top + 'px';
+    const py = top + anchor;
+
+    let d;
+    const sideOk = right ? bx >= origin.x - 1 : bx <= origin.x + 1;
+    if (sideOk) {
+      const mx = (bx + edge) / 2;
+      d = `M${ax} ${ay}L${bx} ${by}H${mx}V${py}H${edge}`;
+    } else {
+      // 화면 끝이라 반대편에 패널이 뜬 경우 → 링 바깥을 따라 돌아서 연결
+      const RR = R1 + 16, target = right ? 90 : 270;
+      const delta = ((target - ang) % 360 + 360) % 360;
+      const sweep = delta <= 180 ? 1 : 0;
+      const [tx, ty] = toPage(pt(RR, target));
+      d = `M${ax} ${ay}L${bx} ${by}A${RR} ${RR} 0 0 ${sweep} ${tx} ${ty}V${py}H${edge}`;
+    }
     connector.setAttribute('width', innerWidth); connector.setAttribute('height', innerHeight);
-    connectorPath.setAttribute('d', `M${ax} ${ay}H${mx}V${ey}H${ex}`);
+    connectorPath.setAttribute('d', d);
   }
 
   function focusFirstSub() { sub.querySelector('.sub-item')?.focus(); }
@@ -356,9 +502,11 @@
   });
   layer.addEventListener('mousedown', (e) => { if (e.target === layer) close(); });
   layer.addEventListener('contextmenu', (e) => { e.preventDefault(); if (e.target === layer) open(e.clientX, e.clientY); });
-  document.getElementById('knob').addEventListener('click', close);
+  // 가운데 DEV 버튼 → 개발자 페이지
+  document.getElementById('knob').addEventListener('click', () => { location.href = 'dev.html'; });
 
   layer.addEventListener('wheel', (e) => {
+    if (e.target.closest('.sub-body')) return;   // 펼친 목록 안에서는 스크롤
     e.preventDefault();
     setActive(active + (e.deltaY > 0 ? 1 : -1));
   }, { passive: false });
