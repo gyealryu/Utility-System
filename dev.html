@@ -54,14 +54,27 @@
   .wrap { flex: 1; display: flex; padding: 16px 20px 20px; }
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
 
-  /* ---------- 시스템 맵 ---------- */
-  .map { flex: 1; display: grid; place-items: center; overflow: hidden; padding: 12px; }
-  .map-stage {
-    position: relative; aspect-ratio: 800 / 440; container-type: inline-size;
-    width: min(100%, calc((100vh - 120px) * 800 / 440));
-    width: min(100%, calc((100dvh - 120px) * 800 / 440));
+  /* ---------- 시스템 맵: 무한 캔버스 (드래그 이동 · 휠/핀치 확대) ---------- */
+  .map {
+    flex: 1; position: relative; overflow: hidden; min-height: 320px;
+    cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none;
+    /* 아이소메트릭 바닥 격자 — 이동/확대에 맞춰 JS가 위치·크기를 갱신해서 끝없이 이어짐 */
+    background-color: var(--panel);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 69.282 40' preserveAspectRatio='none'%3E%3Cpath d='M34.641 0L69.282 20L34.641 40L0 20Z' fill='none' stroke='rgba(255,255,255,0.05)' stroke-width='1' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E");
   }
-  .map svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .map.dragging { cursor: grabbing; }
+  .world { position: absolute; left: 0; top: 0; width: 800px; height: 440px; transform-origin: 0 0; will-change: transform; }
+  .world > svg { position: absolute; inset: 0; width: 800px; height: 440px; overflow: visible; }
+
+  .zoombar {
+    position: absolute; right: 14px; bottom: 14px; display: flex; align-items: center; gap: 2px;
+    background: rgba(24,28,30,.92); border: 1px solid var(--line-2); border-radius: 8px; padding: 3px; cursor: default;
+  }
+  .zoombar button { background: none; border: 0; color: var(--text); width: 30px; height: 28px; border-radius: 6px; cursor: pointer; font-size: 15px; }
+  .zoombar button:hover { background: rgba(255,255,255,.07); }
+  .zoombar .fit { width: auto; padding: 0 10px; font-size: 12px; color: var(--muted); }
+  .zoombar .zl { min-width: 46px; text-align: center; font-size: 12px; color: var(--muted); font-family: var(--mono); }
+  .maphint { position: absolute; left: 14px; bottom: 14px; color: var(--dim); font-size: 12px; pointer-events: none; }
   .flow { stroke-dasharray: 6 10; animation: flow 1.4s linear infinite; }
   @keyframes flow { to { stroke-dashoffset: -32; } }
   .plat { cursor: pointer; }
@@ -72,7 +85,7 @@
   .callout {
     position: absolute; transform: translate(0, -100%);
     background: rgba(24,28,30,.92); border: 1px solid var(--line-2); border-radius: 6px;
-    padding: .55em .8em; font-size: clamp(9px, 1.5cqw, 15px); min-width: 13em; cursor: pointer;
+    padding: .55em .8em; font-size: 12px; min-width: 13em; cursor: pointer;
     box-shadow: 0 8px 24px rgba(0,0,0,.4); backdrop-filter: blur(4px);
     transition: border-color .15s;
   }
@@ -82,7 +95,7 @@
   .callout .r { display: flex; justify-content: space-between; gap: 1.2em; color: var(--muted); }
   .callout .r b { color: var(--text); font-weight: 500; font-family: var(--mono); }
 
-  .gauge { position: absolute; width: 11%; aspect-ratio: 1; transform: translate(-50%, -50%); text-align: center; font-size: clamp(8px, 1.3cqw, 14px); color: var(--muted); }
+  .gauge { position: absolute; width: 88px; aspect-ratio: 1; transform: translate(-50%, -50%); text-align: center; font-size: 11px; color: var(--muted); }
   .gauge svg { position: static; width: 100%; height: auto; }
   .gauge .g-v { position: absolute; inset: 0; display: grid; place-items: center; color: var(--text); font-weight: 600; font-size: 1.35em; padding-bottom: 1.4em; }
   .gauge .g-l { margin-top: .2em; white-space: nowrap; }
@@ -134,12 +147,7 @@
     .top { flex-wrap: wrap; padding: 12px 16px; }
     .top .meta { gap: 12px; flex-wrap: wrap; }
     .wrap { padding: 12px 16px 16px; }
-    .wrap { align-items: flex-start; }
-    .map { padding: 6px; flex: 1; }
-    .callout { min-width: 0; }
-  }
-  @media (max-width: 480px) {
-    .callout .r { display: none; }
+    .maphint { display: none; }
   }
 </style>
 </head>
@@ -164,9 +172,16 @@
   </header>
 
   <main class="wrap">
-    <section class="panel map" aria-label="시스템 맵">
-      <div class="map-stage" id="stage">
+    <section class="panel map" id="viewport" aria-label="시스템 맵 (드래그로 이동, 휠로 확대/축소)">
+      <div class="world" id="stage">
         <svg viewBox="0 0 800 440" id="mapSvg" aria-hidden="true"></svg>
+      </div>
+      <div class="maphint">드래그로 이동 · 휠/핀치로 확대 · 0 키로 맞춤</div>
+      <div class="zoombar" id="zoombar">
+        <button id="zOut" aria-label="축소">−</button>
+        <span class="zl" id="zLabel">100%</span>
+        <button id="zIn" aria-label="확대">+</button>
+        <button class="fit" id="zFit">맞춤</button>
       </div>
     </section>
   </main>
@@ -282,14 +297,6 @@
     <radialGradient id="hubg"><stop offset="0" stop-color="#5ff5da"/><stop offset="1" stop-color="#14a88d"/></radialGradient>
   </defs>`;
 
-  // 바닥 그리드
-  h += '<g stroke="rgba(255,255,255,.045)" stroke-width="1">';
-  for (let i = -400; i <= 900; i += 40) {
-    h += `<line x1="${iso(i, -400)[0]}" y1="${iso(i, -400)[1]}" x2="${iso(i, 900)[0]}" y2="${iso(i, 900)[1]}"/>`;
-    h += `<line x1="${iso(-400, i)[0]}" y1="${iso(-400, i)[1]}" x2="${iso(900, i)[0]}" y2="${iso(900, i)[1]}"/>`;
-  }
-  h += '</g>';
-
   // 연결선 (허브 → 각 노드, 아이소 축을 따라 꺾임)
   const [hx, hy] = fromScreen(...HUB);
   NODES.forEach(n => {
@@ -336,7 +343,7 @@
   svg.innerHTML = h;
 
   // 콜아웃 (HTML, % 좌표)
-  const pct = ([x, y]) => `left:${(x / VW * 100).toFixed(2)}%;top:${(y / VH * 100).toFixed(2)}%`;
+  const pct = ([x, y]) => `left:${x}px;top:${y}px`;
   stage.insertAdjacentHTML('beforeend', NODES.map(n =>
     `<div class="callout${n.glow ? ' active' : ''}" data-node="${n.id}" style="${pct(n.call)}" role="button" tabindex="0">
        <div class="t">${n.name}</div><div class="r" data-r="1"></div><div class="r" data-r="2"></div>
@@ -352,8 +359,97 @@
     document.querySelectorAll('[data-node]').forEach(el => el.classList.toggle('active', el.dataset.node === id));
     if (id === 'store') openDrawer();
   }
-  stage.addEventListener('click', (e) => { const n = e.target.closest('[data-node]'); if (n) selectNode(n.dataset.node); });
+  stage.addEventListener('click', (e) => { if (justDragged) return; const n = e.target.closest('[data-node]'); if (n) selectNode(n.dataset.node); });
   stage.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.dataset.node) selectNode(e.target.dataset.node); });
+
+  /* ======================================================
+   * 무한 캔버스: 이동 / 확대
+   * ====================================================== */
+  const vp = $('viewport');
+  const TW = 80 * CS, TH = 40;            // 격자 한 칸 (아이소 40 단위)
+  const MIN = 0.2, MAX = 5;
+  let tx = 0, ty = 0, sc = 1, touched = false, justDragged = false;
+
+  function apply() {
+    stage.style.transform = `translate(${tx}px, ${ty}px) scale(${sc})`;
+    const w = TW * sc, hh = TH * sc;
+    vp.style.backgroundSize = `${w}px ${hh}px`;
+    vp.style.backgroundPosition = `${tx + OX * sc - w / 2}px ${ty + OY * sc}px`;
+    $('zLabel').textContent = Math.round(sc * 100) + '%';
+  }
+  function fit() {
+    const r = vp.getBoundingClientRect();
+    sc = Math.min(r.width / VW, r.height / VH) * 0.92;
+    tx = (r.width - VW * sc) / 2; ty = (r.height - VH * sc) / 2 + 10 * sc;
+    apply();
+  }
+  function zoomAt(f, cx, cy) {
+    const ns = Math.min(MAX, Math.max(MIN, sc * f));
+    tx = cx - (cx - tx) * ns / sc; ty = cy - (cy - ty) * ns / sc; sc = ns;
+    touched = true; apply();
+  }
+  const center = () => { const r = vp.getBoundingClientRect(); return [r.width / 2, r.height / 2]; };
+
+  vp.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const r = vp.getBoundingClientRect();
+    zoomAt(Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015)), e.clientX - r.left, e.clientY - r.top);
+  }, { passive: false });
+
+  // 드래그 이동 + 두 손가락 핀치 확대
+  const pts = new Map();
+  let start = null;
+  vp.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('.zoombar') || e.button > 0) return;
+    pts.set(e.pointerId, [e.clientX, e.clientY]);
+    start = { tx, ty, sc, pts: new Map(pts), moved: false };
+  });
+  addEventListener('pointermove', (e) => {
+    if (!pts.has(e.pointerId) || !start) return;
+    pts.set(e.pointerId, [e.clientX, e.clientY]);
+    const r = vp.getBoundingClientRect();
+    if (pts.size === 1) {
+      const [x0, y0] = start.pts.get(e.pointerId) || [e.clientX, e.clientY];
+      const dx = e.clientX - x0, dy = e.clientY - y0;
+      if (!start.moved && Math.hypot(dx, dy) < 4) return;
+      start.moved = true; vp.classList.add('dragging');
+      tx = start.tx + dx; ty = start.ty + dy; touched = true; apply();
+    } else if (pts.size === 2 && start.pts.size === 2) {
+      const [a, b] = [...pts.values()], [a0, b0] = [...start.pts.values()];
+      const d = Math.hypot(a[0] - b[0], a[1] - b[1]), d0 = Math.hypot(a0[0] - b0[0], a0[1] - b0[1]) || 1;
+      const mx = (a[0] + b[0]) / 2 - r.left, my = (a[1] + b[1]) / 2 - r.top;
+      const mx0 = (a0[0] + b0[0]) / 2 - r.left, my0 = (a0[1] + b0[1]) / 2 - r.top;
+      const ns = Math.min(MAX, Math.max(MIN, start.sc * d / d0));
+      sc = ns;
+      tx = mx - (mx0 - start.tx) * ns / start.sc; ty = my - (my0 - start.ty) * ns / start.sc;
+      start.moved = true; touched = true; apply();
+    }
+  });
+  const endPtr = (e) => {
+    if (!pts.has(e.pointerId)) return;
+    pts.delete(e.pointerId);
+    if (start?.moved) { justDragged = true; setTimeout(() => justDragged = false, 0); }
+    vp.classList.remove('dragging');
+    start = pts.size ? { tx, ty, sc, pts: new Map(pts), moved: start?.moved } : null;
+  };
+  addEventListener('pointerup', endPtr);
+  addEventListener('pointercancel', endPtr);
+
+  $('zIn').addEventListener('click', () => zoomAt(1.25, ...center()));
+  $('zOut').addEventListener('click', () => zoomAt(0.8, ...center()));
+  $('zFit').addEventListener('click', () => { touched = false; fit(); });
+  vp.addEventListener('dblclick', (e) => {
+    if (e.target.closest('.zoombar, .callout')) return;
+    const r = vp.getBoundingClientRect(); zoomAt(1.6, e.clientX - r.left, e.clientY - r.top);
+  });
+  addEventListener('keydown', (e) => {
+    if (e.target.closest('input, .drawer') || $('drawer').classList.contains('open')) return;
+    if (e.key === '+' || e.key === '=') zoomAt(1.25, ...center());
+    else if (e.key === '-' || e.key === '_') zoomAt(0.8, ...center());
+    else if (e.key === '0') { touched = false; fit(); }
+  });
+  addEventListener('resize', () => { if (!touched) fit(); });
+  fit();
 
   function renderCallouts() {
     const on = navigator.onLine, c = navigator.connection || {};
