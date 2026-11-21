@@ -99,7 +99,6 @@
   /* 하위 항목 패널 */
   .sub {
     position: absolute; display: flex; flex-direction: column; gap: 10px;
-    transform: translateY(-50%);
   }
   .sub-title { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding-left: 4px; }
   .sub-item {
@@ -115,7 +114,7 @@
   .sub-item svg { flex: none; }
   @keyframes slide { to { opacity: 1; transform: none; } }
   .sub.left .sub-item { transform: translateX(8px); }
-  .connector { position: absolute; pointer-events: none; overflow: visible; }
+  .connector { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
   .connector path { stroke: rgba(255,255,255,.25); fill: none; stroke-width: 1.2; }
 
   /* 토스트 */
@@ -284,7 +283,7 @@
     const [ix, iy] = pt((R0 + R1) / 2, i * STEP);
     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     g.classList.add('seg-group');
-    g.innerHTML = `<path class="seg" d="${arcPath(a0, a1)}"><title>${m.label}</title></path>
+    g.innerHTML = `<path class="seg" d="${arcPath(a0, a1)}" aria-label="${m.label}"></path>
       <g class="seg-icon" transform="translate(${ix - 10} ${iy - 10})">${ICON[m.icon]}</g>`;
     g.addEventListener('mouseenter', () => setActive(i));
     g.addEventListener('click', () => { setActive(i); focusFirstSub(); });
@@ -298,35 +297,59 @@
     if (i === active) return;
     active = i;
     [...segG.children].forEach((g, j) => g.classList.toggle('active', j === i));
-    knobLabel.textContent = MENU[i].label;
     renderSub();
   }
 
   function renderSub() {
     const m = MENU[active];
-    const rightSide = origin.x + 150 + 270 < innerWidth;
-    sub.classList.toggle('left', !rightSide);
+    const W = 270, GAP_OUT = 40;
+
+    // 활성 세그먼트가 있는 쪽(좌/우)에 패널을 띄움 → 연결선이 다이얼을 가로지르지 않게
+    const ang = active * STEP;
+    const [sx] = pt(R1, ang);
+    let right = sx - C >= -1;
+    if (right && origin.x + C + GAP_OUT + W > innerWidth) right = false;
+    else if (!right && origin.x - C - GAP_OUT - W < 0) right = true;
+
+    sub.classList.toggle('left', !right);
     sub.innerHTML = `<div class="sub-title">${m.label}</div>` + m.items.map((it, k) =>
       `<button class="sub-item" role="menuitem" data-k="${k}" style="animation-delay:${k * 35}ms">${ICON[it.icon]}<span>${it.label}</span></button>`
     ).join('');
-    const x = rightSide ? origin.x + 150 + 40 : origin.x - 150 - 40;
-    sub.style.left = rightSide ? x + 'px' : '';
-    sub.style.right = rightSide ? '' : (innerWidth - x) + 'px';
-    sub.style.top = origin.y + 'px';
     sub.querySelectorAll('.sub-item').forEach(b => b.addEventListener('click', () => {
       const it = m.items[+b.dataset.k];
       close();
       it.run();
     }));
 
-    // 활성 세그먼트 → 패널로 이어지는 연결선
-    const [sx, sy] = pt(R1, active * STEP);
-    const ax = origin.x + sx - C, ay = origin.y + sy - C;
-    const ex = rightSide ? x : x, ey = origin.y;
-    const mx = (ax + ex) / 2;
-    connector.style.left = '0'; connector.style.top = '0';
+    // 세그먼트 바깥 끝 → 살짝 바깥으로 → 패널 첫 항목 높이로 수평 연결
+    const toPage = ([x, y]) => [origin.x + x - C, origin.y + y - C];
+    const [ax, ay] = toPage(pt(R1 + 2, ang));
+    const [bx, by] = toPage(pt(R1 + 16, ang));
+    const edge = right ? origin.x + C + GAP_OUT : origin.x - C - GAP_OUT;
+    sub.style.left = right ? edge + 'px' : '';
+    sub.style.right = right ? '' : (innerWidth - edge) + 'px';
+
+    const first = sub.querySelector('.sub-item');
+    const anchor = first.offsetTop + first.offsetHeight / 2;
+    const top = Math.min(Math.max(by - anchor, 12), innerHeight - sub.offsetHeight - 12);
+    sub.style.top = top + 'px';
+    const py = top + anchor;
+
+    let d;
+    const sideOk = right ? bx >= origin.x - 1 : bx <= origin.x + 1;
+    if (sideOk) {
+      const mx = (bx + edge) / 2;
+      d = `M${ax} ${ay}L${bx} ${by}H${mx}V${py}H${edge}`;
+    } else {
+      // 화면 끝이라 반대편에 패널이 뜬 경우 → 링 바깥을 따라 돌아서 연결
+      const RR = R1 + 16, target = right ? 90 : 270;
+      const delta = ((target - ang) % 360 + 360) % 360;
+      const sweep = delta <= 180 ? 1 : 0;
+      const [tx, ty] = toPage(pt(RR, target));
+      d = `M${ax} ${ay}L${bx} ${by}A${RR} ${RR} 0 0 ${sweep} ${tx} ${ty}V${py}H${edge}`;
+    }
     connector.setAttribute('width', innerWidth); connector.setAttribute('height', innerHeight);
-    connectorPath.setAttribute('d', `M${ax} ${ay}H${mx}V${ey}H${ex}`);
+    connectorPath.setAttribute('d', d);
   }
 
   function focusFirstSub() { sub.querySelector('.sub-item')?.focus(); }
