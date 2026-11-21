@@ -87,6 +87,9 @@
     display: grid; place-items: center; color: #2a2b31; border: 0;
   }
   .knob > svg { width: 20px; height: 20px; margin-top: -10px; }
+  .knob { transition: transform .15s, box-shadow .15s; }
+  .knob:hover { transform: translate(-50%, -50%) scale(1.04); box-shadow: 0 0 0 6px #17181d, 0 0 32px 8px rgba(255,138,76,.38), inset 0 -6px 12px rgba(0,0,0,.15); }
+  .knob:active { transform: translate(-50%, -50%) scale(.98); }
   .knob::before {
     content: ""; position: absolute; inset: 10px; border-radius: 50%;
     border: 2px dotted rgba(0,0,0,.18);
@@ -182,7 +185,7 @@
   </div>
   <p class="hint">
     개발자 권한 계정은 아무 곳에서나 <kbd>우클릭</kbd> 하면 개발자 다이얼이 열립니다.
-    휠/방향키로 회전, <kbd>Enter</kbd> 선택, <kbd>Esc</kbd> 닫기.
+    휠/방향키로 회전, <kbd>Enter</kbd> 선택, <kbd>Esc</kbd> 닫기, 가운데 <kbd>DEV</kbd>를 누르면 개발자 페이지로 이동.
     브라우저 기본 메뉴가 필요하면 <kbd>Shift</kbd>+우클릭.
   </p>
 </main>
@@ -198,7 +201,7 @@
       </defs>
       <g id="segments"></g>
     </svg>
-    <button class="knob" id="knob" aria-label="닫기">
+    <button class="knob" id="knob" aria-label="개발자 페이지로 이동" title="개발자 페이지로 이동">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M7 8h10M7 12h10M7 16h10"/></svg>
       <span class="knob-label" id="knobLabel">DEV</span>
     </button>
@@ -499,7 +502,8 @@
   });
   layer.addEventListener('mousedown', (e) => { if (e.target === layer) close(); });
   layer.addEventListener('contextmenu', (e) => { e.preventDefault(); if (e.target === layer) open(e.clientX, e.clientY); });
-  document.getElementById('knob').addEventListener('click', close);
+  // 가운데 DEV 버튼 → 개발자 페이지
+  document.getElementById('knob').addEventListener('click', () => { location.href = 'dev.html'; });
 
   layer.addEventListener('wheel', (e) => {
     if (e.target.closest('.sub-body')) return;   // 펼친 목록 안에서는 스크롤
